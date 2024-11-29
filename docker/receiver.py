@@ -36,9 +36,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             
             # keep track of received sequences
             RECEIVED_DATA[seq_id] = message
-            
+            print(f"received: {seq_id}")
             # check if sequence id is same as expected and move forward
             if seq_id <= EXPECTED_SEQ_ID and len(RECEIVED_DATA[seq_id]) > 0:
+                print("pass")
                 while EXPECTED_SEQ_ID in RECEIVED_DATA:
                     EXPECTED_SEQ_ID += len(RECEIVED_DATA[seq_id])
             
