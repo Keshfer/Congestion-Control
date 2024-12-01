@@ -4,6 +4,7 @@ PACKET_SIZE = 1024
 SEQ_ID_SIZE = 4
 MESSAGE_SIZE = PACKET_SIZE - SEQ_ID_SIZE
 
+#5319693 is the size of this file
 with open('docker/file.mp3', 'rb') as f:
     data = f.read()
 perPacket_list = []
@@ -34,7 +35,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                 sender_socket.sendto(message, dest)
 
             res_id, res_message = int.from_bytes(response[:SEQ_ID_SIZE], byteorder='big'), response[SEQ_ID_SIZE:]
-            #print(res_id, res_message)
+            print(res_id, res_message)
             if(res_id == expected_id and 'ack' == res_message.decode()):
                 #expected ack received so no need to resend
                 per_rtt = time.time() - per_start
@@ -54,6 +55,30 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
     print("Average per packet delay: {:.7f},".format(avg_perPacket_delay))
     print("Average jitter: {:.7f},".format(avg_jitter))
     print("Metric: {:.7f},".format(metric))
-    close_message = int.to_bytes(-1, 4, signed=True, byteorder='big')
+    finished_message = int.to_bytes(id_counter, 4, signed=True, byteorder='big') + b''
+    sender_socket.sendto(finished_message, dest)
+    while True:
+        try:
+            #ack_response, _ = sender_socket.recvfrom(PACKET_SIZE)
+            fin_response, _ = sender_socket.recvfrom(PACKET_SIZE)
+            fin_id, fin_message = int.from_bytes(fin_response[:SEQ_ID_SIZE], byteorder='big'), fin_response[SEQ_ID_SIZE:]
+            print(fin_id, fin_message)
+            if(fin_id == expected_id+ 3 and'fin' == fin_message.decode()):
+                print('all collected') #due to cumulative acknowledgement
+                break
+            else:
+                sender_socket.sendto(finished_message, dest)
+                continue
+        except socket.timeout:
+            print('Timeout occurred')
+            sender_socket.sendto(finished_message, dest)
+    #ack_id, ack_message = int.from_bytes(ack_response[:SEQ_ID_SIZE], byteorder='big'), ack_response[SEQ_ID_SIZE:]
+    #fin_id, fin_message = int.from_bytes(fin_response[:SEQ_ID_SIZE], byteorder='big'), fin_response[SEQ_ID_SIZE:]
+    #print(ack_id, ack_message)
+    
+    close_message = int.to_bytes(fin_id + 10, 4, byteorder='big') + b"==FINACK=="
     sender_socket.sendto(close_message, dest)
+    
+
+    
 
