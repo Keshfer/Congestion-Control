@@ -197,8 +197,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                 for i in range(res_index):
                     ack_id = id_list[i]
                     ack_dict[ack_id] = True
-                tempy = operator.countOf(ack_dict.values(), True)
-                #print(f"{tempy} trues out of {len(id_list)}")
             else: # dup error
                 if dup_id == None or dup_id == res_id:
                     dup_ack += 1
@@ -224,7 +222,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
     print("Average per packet delay: {:.7f},".format(avg_perPacket_delay))
     print("Average jitter: {:.7f},".format(avg_jitter))
     print("Metric: {:.7f},".format(metric))
-    print("closing message")
     close_message = int.to_bytes(id_counter, 4, signed=True, byteorder='big') + b''
     sender_socket.sendto(close_message, dest)
     message_list = [close_message]
