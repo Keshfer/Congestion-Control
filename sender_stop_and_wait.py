@@ -33,9 +33,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                 response, addr = sender_socket.recvfrom(1024)
             except socket.timeout:
                 sender_socket.sendto(message, dest)
+                continue
 
             res_id, res_message = int.from_bytes(response[:SEQ_ID_SIZE], byteorder='big'), response[SEQ_ID_SIZE:]
-            print(res_id, res_message)
+            #print(res_id, res_message)
             if(res_id == expected_id and 'ack' == res_message.decode()):
                 #expected ack received so no need to resend
                 per_rtt = time.time() - per_start

@@ -1,6 +1,7 @@
 import socket
 import time
 import operator
+import math
 
 PACKET_SIZE = 1024
 SEQ_ID_SIZE = 4
@@ -29,15 +30,20 @@ dev_rtt = 0.25
 alpha = 0.125
 beta = 0.25
 sample_rtt = None  # Placeholder for RTT measurement
+
+#dup3_count = 0
+#timeout_count = 0
 def receive_response(socket_:socket):
     global ssthreshold
     global congest_control
     global window_size
     global is_timeout
+    #global timeout_count
     try:
         response, addr = socket_.recvfrom(PACKET_SIZE)
     except socket.timeout:
         #print("timeout occurred")
+        #timeout_count += 1
         socket_.settimeout(socket_.timeout * 2)
         ssthreshold = max(1, window_size / 2)
         window_size = 1
@@ -71,7 +77,7 @@ def retransmit_packets(socket_:socket, curr_window:list, next_index: int):
     global messages
     retrans_index = 0
     ack_vals = list(ack_dict.values())
-    while len(curr_window) < window_size and retrans_index < next_index:
+    while len(curr_window) < math.floor(window_size) and retrans_index < next_index:
         ack_bool = ack_vals[retrans_index]
         if not ack_bool:
             retransmit_id = id_list[retrans_index]
@@ -111,23 +117,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
             retransmit_packets(socket_=sender_socket, curr_window=curr_window, next_index=next_index)
         if next_id - expected_ack < window_size: # if space between next_id and expect_ack is greater than window size, don't send packets until next ack
             if expected_ack < next_id:
-                #retransmit packets
-                #retrans_index = id_list.index(base_retrains_id)
-                # retrans_index = 0
-                # ack_vals = list(ack_dict.values())
-                # while len(curr_window) < window_size and retrans_index < next_index:
-                #     ack_bool = ack_vals[retrans_index]
-                #     if not ack_bool:
-                #         retransmit_id = id_list[retrans_index]
-                #         retransmit_message = messages[retrans_index]
-                #         sender_socket.sendto(retransmit_message, dest)
-                #         curr_window.append(retransmit_id)
-                #         #print(f"Resent message with id {retransmit_id}")
-                #     retrans_index += 1
                 retransmit_packets(socket_=sender_socket, curr_window=curr_window, next_index=next_index)
 
             #send packets up to window_size
-            while len(curr_window) < window_size and next_index < len(id_list):
+            while len(curr_window) < math.floor(window_size) and next_index < len(id_list):
                 #print(f"next_index is {next_index}")
                 id = id_list[next_index]
                 message = messages[next_index]
@@ -197,6 +190,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                 for i in range(res_index):
                     ack_id = id_list[i]
                     ack_dict[ack_id] = True
+                #tempy = operator.countOf(ack_dict.values(), True)
+                #print(f"{tempy} trues out of {len(ack_dict)}")
             else: # dup error
                 if dup_id == None or dup_id == res_id:
                     dup_ack += 1
@@ -206,7 +201,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                     dup_id = res_id
                 if dup_ack == 3:
                     #print("3 dup acks occurred")
-                    #time.sleep(1)
+                    #dup3_count += 1
                     dup_ack = 0
                     ssthreshold = max(1,window_size / 2)
                     window_size = 1
@@ -222,6 +217,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
     print("Average per packet delay: {:.7f},".format(avg_perPacket_delay))
     print("Average jitter: {:.7f},".format(avg_jitter))
     print("Metric: {:.7f},".format(metric))
+    #print(f"dup3 count {dup3_count}")
+    #print(f"timeout count {timeout_count}")
     close_message = int.to_bytes(id_counter, 4, signed=True, byteorder='big') + b''
     sender_socket.sendto(close_message, dest)
     message_list = [close_message]

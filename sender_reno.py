@@ -1,7 +1,7 @@
 import socket
 import time
 import operator
-
+import math
 PACKET_SIZE = 1024
 SEQ_ID_SIZE = 4
 MESSAGE_SIZE = PACKET_SIZE - SEQ_ID_SIZE
@@ -32,15 +32,21 @@ dev_rtt = 0.25
 alpha = 0.125
 beta = 0.25
 sample_rtt = None  # Placeholder for RTT measurement
+
+# dup3_count = 0
+# timeout_count = 0
+# fsm_change = 0
 def receive_response(socket_:socket):
     global ssthreshold
     global congest_control
     global window_size
     global is_timeout
+    #global timeout_count
     try:
         response, addr = socket_.recvfrom(PACKET_SIZE)
     except socket.timeout:
         #print("timeout occurred")
+        #timeout_count += 1
         fsm = SLOW_START
         socket_.settimeout(socket_.timeout * 2)
         ssthreshold = max(1, window_size / 2)
@@ -64,6 +70,7 @@ def receive_fin(socket_:socket, messages: list, dest=dest):
                 continue
         except socket.timeout:
             #print("Timeout occurred")
+            timeout_count += 1
             for message in messages:    
                     socket_.sendto(message, dest)
     #ack_id, ack_message = int.from_bytes(ack_response[:SEQ_ID_SIZE], byteorder='big'), ack_response[SEQ_ID_SIZE:]
@@ -75,7 +82,7 @@ def retransmit_packets(socket_:socket, curr_window:list, next_index: int):
     global messages
     retrans_index = 0
     ack_vals = list(ack_dict.values())
-    while len(curr_window) < window_size and retrans_index < next_index:
+    while len(curr_window) < math.floor(window_size) and retrans_index < next_index:
         ack_bool = ack_vals[retrans_index]
         if not ack_bool:
             retransmit_id = id_list[retrans_index]
@@ -100,8 +107,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
     next_index = 0
     expected_ack = len(messages[0]) - SEQ_ID_SIZE
     while not all(ack_dict.values()):
-        print(f"window size is {window_size}")
-        print(f"ssthreshold is {ssthreshold}")
+        #print(f"window size is {window_size}")
+        #print(f"ssthreshold is {ssthreshold}")
         curr_window = []
         if next_index < len(id_list):
             next_id = id_list[next_index]
@@ -117,7 +124,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                 retransmit_packets(socket_=sender_socket, curr_window=curr_window, next_index=next_index)
 
             #send packets up to window_size
-            while len(curr_window) < window_size and next_index < len(id_list):
+            while len(curr_window) < math.floor(window_size) and next_index < len(id_list):
                 #print(f"next_index is {next_index}")
                 id = id_list[next_index]
                 message = messages[next_index]
@@ -130,7 +137,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
         #get response from server
         #res_tuple will have response's id and message as a tuple (id, message) or None
         res_tuple = receive_response(socket_=sender_socket)
-        print(f"got response {res_tuple}")
+        #print(f"got response {res_tuple}")
 
         if res_tuple != None:
             #timeout did not occurred
@@ -144,7 +151,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
 
             res_id = res_tuple[0]
             res_message = res_tuple[1]
-            print(f"expected ack {expected_ack} vs res id {res_id}")
+            #print(f"expected ack {expected_ack} vs res id {res_id}")
 
             if expected_ack <= res_id and 'ack' == res_message.decode():
                 if fsm == SLOW_START:
@@ -154,6 +161,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                         window_size = ssthreshold
                         #congest_control = True
                         fsm = CONGEST_AVOID
+                        #fsm_change += 1
                 elif fsm == CONGEST_AVOID:
                     #congestion control phase
                     if res_id < len(data):
@@ -188,8 +196,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                 for i in range(res_index):
                     ack_id = id_list[i]
                     ack_dict[ack_id] = True
-                tempy = operator.countOf(ack_dict.values(), True)
-                print(f"{tempy} trues out of {len(ack_dict)}")
+                #tempy = operator.countOf(ack_dict.values(), True)
+                #print(f"{tempy} trues out of {len(ack_dict)}")
             else: # dup error
                 if fsm == FAST_RECOVERY:
                     if dup_id == res_id:
@@ -199,6 +207,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                         window_size = ssthreshold
                         dup_ack = 0
                         fsm = CONGEST_AVOID
+                        #fsm_change += 1
                 if dup_id == None or dup_id == res_id:
                     dup_ack += 1
                     dup_id = res_id
@@ -207,8 +216,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
                     dup_id = res_id
                 if dup_ack == 3:
                     #print("3 dup acks occurred")
-                    #time.sleep(1)
+                    #dup3_count += 1
                     fsm = FAST_RECOVERY
+                    #fsm_change += 1
                     dup_ack = 0
                     ssthreshold = max(1,window_size / 2)
                     window_size = ssthreshold + 3
@@ -224,6 +234,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
     print("Average per packet delay: {:.7f},".format(avg_perPacket_delay))
     print("Average jitter: {:.7f},".format(avg_jitter))
     print("Metric: {:.7f},".format(metric))
+    # print(f"number of dup3: {dup3_count}")
+    # print(f"number of fsm_change: {fsm_change}")
+    # print(f"number of timeout: {timeout_count}")
     close_message = int.to_bytes(id_counter, 4, signed=True, byteorder='big') + b''
     sender_socket.sendto(close_message, dest)
     message_list = [close_message]
