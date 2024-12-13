@@ -65,7 +65,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender_socket:
             fin_id, fin_message = int.from_bytes(fin_response[:SEQ_ID_SIZE], byteorder='big'), fin_response[SEQ_ID_SIZE:]
             print(fin_id, fin_message)
             if(fin_id == expected_id+ 3 and'fin' == fin_message.decode()):
-                print('all collected') #due to cumulative acknowledgement
+                #print('all collected') #due to cumulative acknowledgement
                 break
             else:
                 sender_socket.sendto(finished_message, dest)

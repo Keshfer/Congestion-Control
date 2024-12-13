@@ -36,16 +36,17 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             
             # keep track of received sequences
             RECEIVED_DATA[seq_id] = message
-            print(f"received: {seq_id}")
+            #print(f"received: {seq_id}")
+            #print(f"message size is {len(message)}")
             # check if sequence id is same as expected and move forward
             if seq_id <= EXPECTED_SEQ_ID and len(RECEIVED_DATA[seq_id]) > 0:
-                print("pass")
+                #print("pass")
                 while EXPECTED_SEQ_ID in RECEIVED_DATA:
                     EXPECTED_SEQ_ID += len(RECEIVED_DATA[seq_id])
             
             # create ack id
             ack_id = EXPECTED_SEQ_ID
-            
+            #print('expected seq id is ', ack_id)
             # create the acknowledgement
             acknowledgement = create_acknowledgement(ack_id, 'ack')
 
@@ -53,7 +54,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             udp_socket.sendto(acknowledgement, client)
             
             # check if all data received (empty message)
+            #print(f"ack_id {ack_id} vs seq_id {seq_id}")
             if len(message) == 0 and ack_id == seq_id:
+                #print("the end")
                 ack = create_acknowledgement(ack_id, 'ack')
                 fin = create_acknowledgement(ack_id + 3, 'fin')
                 udp_socket.sendto(ack, client)
