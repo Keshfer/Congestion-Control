@@ -23,9 +23,9 @@ NOTE: Network profile in docker will only function properly in Linux
 8. Both sender and receiver will then exit.
 
 #### Performance Metrics
-Throughput: Amount of data sent per Round Trip Time (RTT)
-Avg Per Packet Delay: Average time between packet received and next packet received
-Average Jitter: Average variation of per packet delay from the Avg Per Packet Delay
-Metric: Scoring for the protocol using the formula: (0.2 * (throughput / 2000)) + (0.1 / avg_jitter) + (0.8 / avg_perPacket_delay)
+Throughput: Amount of data sent per Round Trip Time (RTT)<br>
+Avg Per Packet Delay: Average time between packet received and next packet received<br>
+Average Jitter: Average variation of per packet delay from the Avg Per Packet Delay<br>
+Metric: Scoring for the protocol using the formula: (0.2 * (throughput / 2000)) + (0.1 / avg_jitter) + (0.8 / avg_perPacket_delay)<br>
 
 Each Protocol is tested three times and then used to find their mean and standard deviation.
