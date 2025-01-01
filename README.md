@@ -1,4 +1,4 @@
-#  ECS 152A Programming Assignment 3 (Fall 2024)
+#   Programming Assignment 3 (Fall 2024)
 
 Check the `How to use` section of the README for instructions on indicating the end of sending data.
 
